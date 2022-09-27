@@ -1,8 +1,8 @@
 ﻿using NorthwindDataCollector.Dtos;
 using NorthwindDataCollector.NoSqlDocuments;
+using System.Diagnostics;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using MongoDB.Bson;
 using Category = NorthwindDataCollector.Dtos.Category;
 using Customer = NorthwindDataCollector.Dtos.Customer;
 using Employee = NorthwindDataCollector.Dtos.Employee;
@@ -18,8 +18,9 @@ namespace NorthwindDataCollector
     {
         static async Task Main(string[] args)
         {
-            using var context = new DatabaseContext();
+            await using var context = new DatabaseContext();
             var provider = new EntityProvider();
+            var resultPath = PrepareFolder();
 
             var categories = provider.GetAll<Category>(context);
             var customers = provider.GetAll<Customer>(context);
@@ -35,12 +36,6 @@ namespace NorthwindDataCollector
             var suppliers = provider.GetAll<Supplier>(context);
             var territories = provider.GetAll<Territory>(context);
 
-            var productsByOrderId = orderDetails
-                .GroupBy(x => x.OrderId, (a, b) => new{ OrderId = a, ProductIds = b.Select(c => c.ProductId).ToArray()})
-                .Select(x => new{ OrderId = x.OrderId, Products = products.Where(y => x.ProductIds.Contains(y.ProductId))})
-                .Select(x => new{ OrderId = x.OrderId, Products = x.Products.Select(y => y.ToDocument(suppliers, categories))})
-                .ToArray();
-
             var noSqlTerritories = territories
                 .Select(x => new NoSqlDocuments.EmployeeTerritory()
                 {
@@ -49,43 +44,93 @@ namespace NorthwindDataCollector
                     RegionDescription = regions.Single(y => y.RegionId == x.RegionId).RegionDescription
                 });
 
-            var orderAggregate = orders.Select(order => new OrderAggregate() with
-            {
-                OrderDate = order.OrderDate,
-                RequiredDate = order.RequiredDate,
-                ShippedDate = order.ShippedDate,
-                Freight = order.Freight,
-                ShipName = order.ShipName,
-                ShipAddress = order.ShipAddress,
-                ShipCity = order.ShipCity,
-                ShipRegion = order.ShipRegion,
-                ShipPostalCode = order.ShipPostalCode,
-                ShipCountry = order.ShipCountry,
-                ShipVia = shippers.SingleOrDefault(x => x.ShipperId == order.ShipVia)?.ToDocument() ?? null,
-                OrderDetails = orderDetails.Where(x => x.OrderId == order.OrderId).Select(x => x.ToDocument(products, suppliers, categories)),
-                Customer = customers.SingleOrDefault(x => x.CustomerID == order.CustomerId)?.ToDocument(customerCustomerDemo, customerDemographic),
-                Employee = employees.SingleOrDefault(x => x.EmployeeId == order.EmployeeId)?.ToDocument(employeeTerritories, noSqlTerritories),
-            })
-                .ToArray();
-
-            var path = Path.Combine(Environment.CurrentDirectory, "Results");
-            Directory.CreateDirectory(path);
-
             JsonSerializerOptions options = new()
             {
                 DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
                 WriteIndented = true
             };
 
-            var task1 = WriteToJson(orderAggregate, path, "Orders", options);
-            var task2 = WriteToJson(categories.Select(x => x.ToDocument()), path, "Categories", options);
-            var task3 = WriteToJson(customers.Select(x => x.ToDocument(customerCustomerDemo, customerDemographic)), path, "Customers", options);
-            var task4 = WriteToJson(employees.Select(x => x.ToDocument(employeeTerritories, noSqlTerritories)), path, "Employees", options);
-            var task5 = WriteToJson(products.Select(x => x.ToDocument(suppliers, categories)), path, "Products", options);
-            var task6 = WriteToJson(shippers.Select(x => x.ToDocument()), path, "Shippers", options);
-            var task7 = WriteToJson(suppliers.Select(x => x.ToDocument()), path, "Suppliers", options);
+            var tasks = new[]
+            {
+                WriteToJson(
+                    data: orders.Select(x => x.ToDocument(shippers, orderDetails, products, suppliers, categories, customers, employees, customerCustomerDemo, customerDemographic, employeeTerritories, noSqlTerritories)),
+                    path: resultPath,
+                    filename: "Orders",
+                    options: options),
+                WriteToJson(
+                    data: categories.Select(x => x.ToDocument()),
+                    resultPath,
+                    filename: "Categories",
+                    options: options),
+                WriteToJson(
+                    data: customers.Select(x => x.ToDocument(customerCustomerDemo, customerDemographic)),
+                    resultPath,
+                    filename: "Customers",
+                    options: options),
+                WriteToJson(
+                    data: employees.Select(x => x.ToDocument(employeeTerritories, noSqlTerritories)),
+                    resultPath,
+                    filename: "Employees",
+                    options: options),
+                WriteToJson(
+                    data: products.Select(x => x.ToDocument(suppliers, categories)),
+                    resultPath,
+                    filename: "Products",
+                    options: options),
+                WriteToJson(
+                    data: shippers.Select(x => x.ToDocument()),
+                    resultPath,
+                    filename: "Shippers",
+                    options: options),
+                WriteToJson(
+                    data: suppliers.Select(x => x.ToDocument()),
+                    resultPath,
+                    filename: "Suppliers",
+                    options: options),
+            };
 
-            Task.WaitAll(new[] { task1, task2, task3, task4, task5, task6, task7 });
+            Task.WaitAll(tasks);
+
+            BuildImage();
+        }
+
+        private static string PrepareFolder()
+        {
+            var resultPath = Path.Combine(Environment.CurrentDirectory, "Result");
+            Directory.CreateDirectory(resultPath);
+
+            var setupFileName = "mysetup.sh";
+            if (!File.Exists(Path.Combine(resultPath, setupFileName)))
+            {
+                File.Copy(Path.Combine(Environment.CurrentDirectory, setupFileName), Path.Combine(resultPath, setupFileName));
+            }
+
+            return resultPath;
+        }
+
+        private static void BuildImage()
+        {
+            var dockerfilePath = Path.Combine(Environment.CurrentDirectory, ".");
+            var imageTag = "kolbpeter/mongodb:northwind";
+            var buildImageCommand = $"docker build -t {imageTag} {dockerfilePath}";
+
+            using var process = new Process();
+            process.StartInfo = new ProcessStartInfo
+            {
+                CreateNoWindow = false,
+                UseShellExecute = false,
+                WindowStyle = ProcessWindowStyle.Normal,
+                Arguments = $"/C {buildImageCommand}", // $"{buildImageCommand}"
+                FileName = "cmd.exe", // "/bin/bash"
+            };
+
+            process.Start();
+            process.WaitForExit();
+
+            if (process.ExitCode != 0)
+            {
+                Console.WriteLine($"Image build failed with exit code {process.ExitCode}");
+            }
         }
 
         private static async Task WriteToJson<T>(
@@ -95,7 +140,7 @@ namespace NorthwindDataCollector
             JsonSerializerOptions options)
             where T : Entity
         {
-            
+
             Console.WriteLine($"Started writing {filename}.json");
             await File.WriteAllLinesAsync(
                 path: Path.Combine(path, $"{filename}.json"),
@@ -103,8 +148,8 @@ namespace NorthwindDataCollector
                     .Select((x, i) =>
                     {
                         x._id = new IdClass { Id = i.ToString("X24") };
-                            return x;
-                        })
+                        return x;
+                    })
                     .Select(x => JsonSerializer.Serialize(x))
                     .ToArray());
             Console.WriteLine($"Finished writing {filename}.json");

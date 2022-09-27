@@ -21,9 +21,5 @@ jobs:
       run: dotnet restore
     - name: Build
       run: dotnet build --no-restore
-    - name: Copy setup file
-      run: |
-        cp Result/*.* ${{ github.workspace }}.Result/
-        ls ${{ github.workspace }}.Result
     - name: Test
       run: dotnet test --no-build --verbosity normal

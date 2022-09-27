@@ -128,9 +128,8 @@ namespace NorthwindDataCollector
         public static NoSqlDocuments.Employee ToDocument(
             this Employee dto,
             IEnumerable<EmployeeTerritory> employeeTerritories,
-            IEnumerable<NoSqlDocuments.EmployeeTerritory> territories)
-        {
-            return new()
+            IEnumerable<NoSqlDocuments.EmployeeTerritory> territories) =>
+            new()
             {
                 LastName = dto.LastName,
                 FirstName = dto.FirstName,
@@ -155,6 +154,39 @@ namespace NorthwindDataCollector
                         .Select(y => y.TerritoryId)
                         .Contains(x.TerritoryId))
             };
-        }
+
+        public static OrderAggregate ToDocument(
+            this Order dto,
+            IEnumerable<Shipper> shippers,
+            IEnumerable<OrderDetail> orderDetails,
+            IEnumerable<Product> products,
+            IEnumerable<Supplier> suppliers,
+            IEnumerable<Category> categories,
+            IEnumerable<Customer> customers,
+            IEnumerable<Employee> employees,
+            IEnumerable<CustomerCustomerDemo> customerCustomerDemo,
+            IEnumerable<CustomerDemographic> customerDemographic,
+            IEnumerable<EmployeeTerritory> employeeTerritories,
+            IEnumerable<NoSqlDocuments.EmployeeTerritory> noSqlTerritories) =>
+            new()
+            {
+                OrderDate = dto.OrderDate,
+                RequiredDate = dto.RequiredDate,
+                ShippedDate = dto.ShippedDate,
+                Freight = dto.Freight,
+                ShipName = dto.ShipName,
+                ShipAddress = dto.ShipAddress,
+                ShipCity = dto.ShipCity,
+                ShipRegion = dto.ShipRegion,
+                ShipPostalCode = dto.ShipPostalCode,
+                ShipCountry = dto.ShipCountry,
+                ShipVia = shippers.SingleOrDefault(x => x.ShipperId == dto.ShipVia)?.ToDocument() ?? null,
+                OrderDetails = orderDetails.Where(x => x.OrderId == dto.OrderId)
+                    .Select(x => x.ToDocument(products, suppliers, categories)),
+                Customer = customers.SingleOrDefault(x => x.CustomerID == dto.CustomerId)
+                    ?.ToDocument(customerCustomerDemo, customerDemographic),
+                Employee = employees.SingleOrDefault(x => x.EmployeeId == dto.EmployeeId)
+                    ?.ToDocument(employeeTerritories, noSqlTerritories),
+            };
     }
 }

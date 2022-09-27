@@ -24,7 +24,12 @@ namespace NorthwindDataCollector
         {
             if (!options.IsConfigured)
             {
-                options.UseSqlServer(@"Data Source=EPHUSZEW005C\SQLEXPRESS;Initial Catalog=Northwind;Integrated Security=True");
+                //options.UseSqlServer(@"Data Source=EPHUSZEW005C\SQLEXPRESS;Initial Catalog=Northwind;Integrated Security=True");
+                options.UseSqlServer(
+                    @"Data Source=(LocalDb)\MSSQLLocalDB;
+                        Initial Catalog=Northwind;
+                        Integrated Security=True;
+                        AttachDBFilename=C:\work\MongoDbTest\NorthwindDataCollector\northwnd.mdf");
             }
         }
 
