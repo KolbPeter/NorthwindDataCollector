@@ -1,4 +1,4 @@
-﻿using System.Text;
+﻿#pragma warning disable CS8618
 
 namespace NorthwindDataCollector.Dtos
 {

@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿#pragma warning disable CS8618
+using Microsoft.EntityFrameworkCore;
 using System.Reflection;
 using NorthwindDataCollector.Dtos;
 

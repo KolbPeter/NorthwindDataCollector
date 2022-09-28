@@ -1,4 +1,6 @@
-﻿namespace NorthwindDataCollector.NoSqlDocuments
+﻿#pragma warning disable CS8618
+
+namespace NorthwindDataCollector.NoSqlDocuments
 {
     public record Employee : Entity
     {

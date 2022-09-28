@@ -1,4 +1,4 @@
-﻿using MongoDB.Bson;
+﻿#pragma warning disable CS8618
 
 namespace NorthwindDataCollector.NoSqlDocuments
 {

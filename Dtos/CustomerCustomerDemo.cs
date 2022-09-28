@@ -1,4 +1,6 @@
-﻿namespace NorthwindDataCollector.Dtos
+﻿#pragma warning disable CS8618
+
+namespace NorthwindDataCollector.Dtos
 {
     public class CustomerCustomerDemo 
     {
