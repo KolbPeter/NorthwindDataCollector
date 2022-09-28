@@ -7,6 +7,8 @@ namespace NorthwindDataCollector
 {
     public class DatabaseContext : DbContext
     {
+        private readonly string connectionString;
+
         public DbSet<Category> Categories { get; set; }
         public DbSet<CustomerCustomerDemo> CustomerCustomerDemo { get; set; }
         public DbSet<Customer> Customers { get; set; }
@@ -21,16 +23,18 @@ namespace NorthwindDataCollector
         public DbSet<Supplier> Suppliers { get; set; }
         public DbSet<Territory> Territories { get; set; }
 
+        public DatabaseContext(string? connectionString = null)
+        {
+            this.connectionString =
+                connectionString
+                ?? $@"Data Source=(LocalDb)\MSSQLLocalDB;Initial Catalog=Northwind;Integrated Security=True;AttachDBFilename={Path.Combine(Environment.CurrentDirectory, "northwnd.mdf")}";
+        }
+
         protected override void OnConfiguring(DbContextOptionsBuilder options)
         {
             if (!options.IsConfigured)
             {
-                //options.UseSqlServer(@"Data Source=EPHUSZEW005C\SQLEXPRESS;Initial Catalog=Northwind;Integrated Security=True");
-                options.UseSqlServer(
-                    @"Data Source=(LocalDb)\MSSQLLocalDB;
-                        Initial Catalog=Northwind;
-                        Integrated Security=True;
-                        AttachDBFilename=C:\work\MongoDbTest\NorthwindDataCollector\northwnd.mdf");
+                options.UseSqlServer(connectionString);
             }
         }
 

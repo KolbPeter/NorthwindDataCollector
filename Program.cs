@@ -18,6 +18,10 @@ namespace NorthwindDataCollector
     {
         static async Task Main(string[] args)
         {
+            //await using var context = new DatabaseContext(
+            //    connectionString:
+            //    @"Data Source=EPHUSZEW005C\SQLEXPRESS;Initial Catalog=Northwind;Integrated Security=True");
+
             await using var context = new DatabaseContext();
             var provider = new EntityProvider();
             var resultPath = PrepareFolder();
